@@ -1,0 +1,19 @@
+import { join } from "node:path";
+import type { DataSourceOptions } from "typeorm";
+import type { Environment } from "../config/env";
+export function databaseOptions(env: Environment): DataSourceOptions {
+  return {
+    type: "postgres",
+    host: env.DB_HOST,
+    port: env.DB_PORT,
+    username: env.DB_USERNAME,
+    password: env.DB_PASSWORD,
+    database: env.DB_DATABASE,
+    ssl: env.DB_SSL ? { rejectUnauthorized: true } : false,
+    logging: env.DB_LOGGING,
+    entities: [join(__dirname, "..", "**", "*.entity.{ts,js}")],
+    migrations: [join(__dirname, "migrations", "*.{ts,js}")],
+    synchronize: false,
+    migrationsRun: false,
+  };
+}
