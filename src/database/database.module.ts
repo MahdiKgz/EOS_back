@@ -9,9 +9,6 @@ import { databaseOptions } from "./database.options";
       inject: [ConfigService],
       useFactory: (config: ConfigService<Environment, true>) =>
         databaseOptions({
-          NODE_ENV: config.get("NODE_ENV", { infer: true }),
-          PORT: config.get("PORT", { infer: true }),
-          CORS_ORIGINS: config.get("CORS_ORIGINS", { infer: true }),
           DB_HOST: config.get("DB_HOST", { infer: true }),
           DB_PORT: config.get("DB_PORT", { infer: true }),
           DB_USERNAME: config.get("DB_USERNAME", { infer: true }),

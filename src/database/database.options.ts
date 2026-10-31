@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import type { DataSourceOptions } from "typeorm";
 import type { Environment } from "../config/env";
-export function databaseOptions(env: Environment): DataSourceOptions {
+export function databaseOptions(env: Pick<Environment, "DB_HOST" | "DB_PORT" | "DB_USERNAME" | "DB_PASSWORD" | "DB_DATABASE" | "DB_SSL" | "DB_LOGGING">): DataSourceOptions {
   return {
     type: "postgres",
     host: env.DB_HOST,
