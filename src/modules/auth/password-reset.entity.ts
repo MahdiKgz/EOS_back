@@ -1,5 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from "typeorm";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
+} from "typeorm";
 import { AppUser } from "../users/user.entity";
 
 @Entity("password_resets")

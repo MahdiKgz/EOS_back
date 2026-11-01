@@ -15,6 +15,9 @@ import { HealthModule } from "./modules/health/health.module";
     AuthModule,
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
   ],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }, { provide: APP_GUARD, useClass: JwtAuthGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+  ],
 })
 export class AppModule {}

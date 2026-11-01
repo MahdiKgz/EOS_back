@@ -91,14 +91,14 @@ pnpm start:prod
 
 ## API احراز هویت
 
-| مسیر زیر `/api/v1/auth` | روش | کاربرد |
-| --- | --- | --- |
-| `/register` | POST | ایجاد کاربر با نقش co_employee و صدور JWT |
-| `/login` | POST | ورود با username و password |
-| `/me` | GET | هویت حساب با Bearer JWT معتبر |
-| `/logout` | POST | ابطال نشست جاری |
-| `/forget-password` | POST | دریافت لینک بازیابی از طریق email |
-| `/reset-password` | POST | تغییر رمز با token یک‌بارمصرف و password جدید |
+| مسیر زیر `/api/v1/auth` | روش  | کاربرد                                        |
+| ----------------------- | ---- | --------------------------------------------- |
+| `/register`             | POST | ایجاد کاربر با نقش co_employee و صدور JWT     |
+| `/login`                | POST | ورود با username و password                   |
+| `/me`                   | GET  | هویت حساب با Bearer JWT معتبر                 |
+| `/logout`               | POST | ابطال نشست جاری                               |
+| `/forget-password`      | POST | دریافت لینک بازیابی از طریق email             |
+| `/reset-password`       | POST | تغییر رمز با token یک‌بارمصرف و password جدید |
 
 JWT فقط با HS256، issuer=`eosnet` و audience=`eosnet-web` پذیرفته می‌شود. انقضا با `JWT_TTL_SECONDS` (پیش‌فرض ۳۶۰۰ ثانیه) تعیین می‌شود. هش توکن در نشست نگه‌داری می‌شود و خروج، نشست را از دسترس خارج می‌کند. تمام مسیرها به‌صورت پیش‌فرض نیاز به احراز هویت دارند و مسیرهای عمومی صریحاً علامت‌گذاری شده‌اند. محدودیت تلاش برای ورود، ثبت‌نام و بازیابی اعمال می‌شود.
 
@@ -111,3 +111,10 @@ pnpm test:auth
 ```
 
 این تست build و API واقعی را با یک SMTP محلی آزمایشی اجرا می‌کند؛ ورود، JWT جعلی و منقضی، محدودیت نقش، خروج، بازیابی یک‌بارمصرف و ابطال نشست را می‌آزماید. دیتابیس باید بالا باشد؛ تنها کاربر موقت همان تست پاک می‌شود. هیچ ایمیلی به سرویس خارجی ارسال نمی‌شود.
+
+## Code formatting
+
+- `pnpm format`: format the project with Prettier.
+- `pnpm format:check`: check formatting without changing files.
+- Husky runs `lint-staged` before every commit to format staged files and include the changes in the commit. A formatting failure blocks the commit.
+- `pnpm install` activates the hooks through the `prepare` script.

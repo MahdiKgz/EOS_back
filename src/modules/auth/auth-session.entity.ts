@@ -23,10 +23,6 @@ export class AuthSession {
   @CreateDateColumn({ type: "timestamptz" }) createdAt!: Date;
   @Column({ type: "timestamptz", default: () => "CURRENT_TIMESTAMP" })
   lastSeenAt!: Date;
-  @Column({ type: "varchar", length: 500, nullable: true }) userAgent!:
-    | string
-    | null;
-  @Column({ type: "varchar", length: 64, nullable: true }) ipAddress!:
-    | string
-    | null;
+  @Column({ type: "varchar", length: 500, nullable: true }) userAgent!: string | null;
+  @Column({ type: "varchar", length: 64, nullable: true }) ipAddress!: string | null;
 }

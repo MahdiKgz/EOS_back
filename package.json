@@ -21,7 +21,10 @@
     "migration:run:prod": "typeorm migration:run -d dist/database/data-source.js",
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
-    "test:auth": "pnpm build && node test/auth.integration.mjs"
+    "test:auth": "pnpm build && node test/auth.integration.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
@@ -51,9 +54,15 @@
     "@types/pg": "^8.0.0",
     "eslint": "^9.0.0",
     "globals": "^16.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.9.10",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.0",
     "typescript-eslint": "^8.0.0"
+  },
+  "lint-staged": {
+    "*": "prettier --write --ignore-unknown"
   }
 }

@@ -1,12 +1,5 @@
 import { Transform } from "class-transformer";
-import {
-  IsEmail,
-  IsOptional,
-  IsString,
-  Length,
-  Matches,
-  MaxLength,
-} from "class-validator";
+import { IsEmail, IsOptional, IsString, Length, Matches, MaxLength } from "class-validator";
 const normalize = ({ value }: { value: unknown }) =>
   typeof value === "string" ? value.trim().toLowerCase() : value;
 const optionalContact = ({ value }: { value: unknown }) =>
@@ -19,13 +12,10 @@ export class RegisterDto {
   @Transform(normalize)
   @IsString()
   @Matches(/^[a-z0-9][a-z0-9._-]{2,63}$/, {
-    message:
-      "نام کاربری باید ۳ تا ۶۴ کاراکتر انگلیسی، عدد، نقطه، خط تیره یا زیرخط باشد.",
+    message: "نام کاربری باید ۳ تا ۶۴ کاراکتر انگلیسی، عدد، نقطه، خط تیره یا زیرخط باشد.",
   })
   username!: string;
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === "string" ? value.trim() : value,
-  )
+  @Transform(({ value }: { value: unknown }) => (typeof value === "string" ? value.trim() : value))
   @IsString()
   @Length(2, 80)
   displayName!: string;

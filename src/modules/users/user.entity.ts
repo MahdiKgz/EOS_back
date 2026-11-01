@@ -1,12 +1,5 @@
 import { randomUUID } from "node:crypto";
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  Index,
-  PrimaryColumn,
-  UpdateDateColumn,
-} from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, UpdateDateColumn } from "typeorm";
 
 export enum AppUserRole {
   PLATFORM_ADMIN = "pl_admin",
@@ -33,9 +26,7 @@ export class AppUser {
   @Column({ default: true }) isActive!: boolean;
   @Column({ type: "text", array: true, default: () => "'{}'" })
   allowedSections!: string[];
-  @Index() @Column({ type: "text", nullable: true }) workspaceOwnerId!:
-    | string
-    | null;
+  @Index() @Column({ type: "text", nullable: true }) workspaceOwnerId!: string | null;
   @CreateDateColumn({ type: "timestamptz" }) createdAt!: Date;
   @UpdateDateColumn({ type: "timestamptz" }) updatedAt!: Date;
 }

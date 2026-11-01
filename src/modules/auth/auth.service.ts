@@ -11,11 +11,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { compare, hash } from "bcryptjs";
 import { DataSource, MoreThan, Repository } from "typeorm";
 import type { Environment } from "../../config/env";
-import {
-  AppUser,
-  AppUserRole,
-  publicUser,
-} from "../users/user.entity";
+import { AppUser, AppUserRole, publicUser } from "../users/user.entity";
 import { AuthSession } from "./auth-session.entity";
 import { PasswordReset } from "./password-reset.entity";
 import { LoginDto, RegisterDto, ResetPasswordDto } from "./dto/auth.dto";
@@ -24,10 +20,8 @@ import { MailService } from "./mail.service";
 
 type Claims = { sub: string; sid: string };
 export type AuthenticatedSession = { user: AppUser; session: AuthSession };
-const digest = (token: string) =>
-  createHash("sha256").update(token).digest("hex");
-const invalid = () =>
-  new UnauthorizedException("نام کاربری یا رمز عبور اشتباه است.");
+const digest = (token: string) => createHash("sha256").update(token).digest("hex");
+const invalid = () => new UnauthorizedException("نام کاربری یا رمز عبور اشتباه است.");
 
 @Injectable()
 export class AuthService {
@@ -44,10 +38,7 @@ export class AuthService {
     private readonly mail: MailService,
   ) {}
 
-  async register(
-    dto: RegisterDto,
-    metadata: { userAgent?: string; ipAddress?: string },
-  ) {
+  async register(dto: RegisterDto, metadata: { userAgent?: string; ipAddress?: string }) {
     assertPasswordPolicy(dto.password, dto.username);
     const passwordHash = await hash(dto.password, 12);
     try {
@@ -75,26 +66,18 @@ export class AuthService {
         "driverError" in error &&
         (error.driverError as { code?: string }).code === "23505"
       )
-        throw new ConflictException(
-          "نام کاربری، ایمیل یا تلفن واردشده قبلاً ثبت شده است.",
-        );
+        throw new ConflictException("نام کاربری، ایمیل یا تلفن واردشده قبلاً ثبت شده است.");
       throw error;
     }
   }
 
-  async login(
-    dto: LoginDto,
-    metadata: { userAgent?: string; ipAddress?: string },
-  ) {
+  async login(dto: LoginDto, metadata: { userAgent?: string; ipAddress?: string }) {
     const user = await this.users
       .createQueryBuilder("user")
       .addSelect("user.passwordHash")
       .where("user.username = :username", { username: dto.username })
       .getOne();
-    const matches = await compare(
-      dto.password,
-      user?.passwordHash ?? (await this.dummyHash),
-    );
+    const matches = await compare(dto.password, user?.passwordHash ?? (await this.dummyHash));
     if (!user || !user.isActive || !matches) throw invalid();
     return this.db.transaction(async (manager) => {
       const current = await manager
@@ -103,8 +86,7 @@ export class AuthService {
         .setLock("pessimistic_read")
         .where("user.id = :id", { id: user.id })
         .getOne();
-      if (!current?.isActive || current.passwordHash !== user.passwordHash)
-        throw invalid();
+      if (!current?.isActive || current.passwordHash !== user.passwordHash) throw invalid();
       return this.createSession(manager, current, metadata);
     });
   }
@@ -116,9 +98,7 @@ export class AuthService {
   ) {
     const session = manager.create(AuthSession, {
       userId: user.id,
-      expiresAt: new Date(
-        Date.now() + this.config.get("JWT_TTL_SECONDS", { infer: true }) * 1000,
-      ),
+      expiresAt: new Date(Date.now() + this.config.get("JWT_TTL_SECONDS", { infer: true }) * 1000),
       userAgent: metadata.userAgent?.slice(0, 500) ?? null,
       ipAddress: metadata.ipAddress?.slice(0, 64) ?? null,
       activeCompanyId: null,
@@ -156,9 +136,7 @@ export class AuthService {
       relations: { user: true },
     });
     if (!session || !session.user.isActive)
-      throw new UnauthorizedException(
-        "نشست شما پایان یافته است. دوباره وارد شوید.",
-      );
+      throw new UnauthorizedException("نشست شما پایان یافته است. دوباره وارد شوید.");
     if (Date.now() - session.lastSeenAt.getTime() > 60000)
       await this.sessions.update(session.id, { lastSeenAt: new Date() });
     return { user: session.user, session };
@@ -189,8 +167,7 @@ export class AuthService {
       }
     }
     return {
-      message:
-        "اگر حسابی با این ایمیل ثبت شده باشد، لینک بازیابی برای آن ارسال می‌شود.",
+      message: "اگر حسابی با این ایمیل ثبت شده باشد، لینک بازیابی برای آن ارسال می‌شود.",
     };
   }
 
@@ -199,18 +176,12 @@ export class AuthService {
       tokenHash: digest(dto.token),
       expiresAt: MoreThan(new Date()),
     });
-    if (!reset)
-      throw new BadRequestException(
-        "لینک بازیابی معتبر نیست یا منقضی شده است.",
-      );
+    if (!reset) throw new BadRequestException("لینک بازیابی معتبر نیست یا منقضی شده است.");
     const user = await this.users.findOneBy({
       id: reset.userId,
       isActive: true,
     });
-    if (!user)
-      throw new BadRequestException(
-        "لینک بازیابی معتبر نیست یا منقضی شده است.",
-      );
+    if (!user) throw new BadRequestException("لینک بازیابی معتبر نیست یا منقضی شده است.");
     assertPasswordPolicy(dto.password, user.username);
     const passwordHash = await hash(dto.password, 12);
     await this.db.transaction(async (manager) => {
@@ -224,9 +195,7 @@ export class AuthService {
         expiresAt: MoreThan(new Date()),
       });
       if (!current || !validReset)
-        throw new BadRequestException(
-          "لینک بازیابی معتبر نیست یا منقضی شده است.",
-        );
+        throw new BadRequestException("لینک بازیابی معتبر نیست یا منقضی شده است.");
       await manager.update(AppUser, user.id, { passwordHash });
       await manager.delete(PasswordReset, { userId: user.id });
       await manager.delete(AuthSession, { userId: user.id });

@@ -10,13 +10,24 @@ import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { MailService } from "./mail.service";
 @Module({
-  imports: [TypeOrmModule.forFeature([AppUser, AuthSession, PasswordReset]), JwtModule.registerAsync({
-    inject: [ConfigService],
-    useFactory: (config: ConfigService<Environment, true>) => ({
-      secret: config.get("JWT_SECRET", { infer: true }),
-      signOptions: { algorithm: "HS256", expiresIn: config.get("JWT_TTL_SECONDS", { infer: true }), issuer: "eosnet", audience: "eosnet-web" },
-      verifyOptions: { algorithms: ["HS256"], issuer: "eosnet", audience: "eosnet-web" },
+  imports: [
+    TypeOrmModule.forFeature([AppUser, AuthSession, PasswordReset]),
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Environment, true>) => ({
+        secret: config.get("JWT_SECRET", { infer: true }),
+        signOptions: {
+          algorithm: "HS256",
+          expiresIn: config.get("JWT_TTL_SECONDS", { infer: true }),
+          issuer: "eosnet",
+          audience: "eosnet-web",
+        },
+        verifyOptions: { algorithms: ["HS256"], issuer: "eosnet", audience: "eosnet-web" },
+      }),
     }),
-  })], controllers: [AuthController], providers: [AuthService, MailService], exports: [AuthService],
+  ],
+  controllers: [AuthController],
+  providers: [AuthService, MailService],
+  exports: [AuthService],
 })
 export class AuthModule {}
