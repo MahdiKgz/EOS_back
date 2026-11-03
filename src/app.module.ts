@@ -1,3 +1,4 @@
+import { DevicesModule } from "./modules/devices/devices.module";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { AuthModule } from "./modules/auth/auth.module";
@@ -13,6 +14,7 @@ import { HealthModule } from "./modules/health/health.module";
     DatabaseModule,
     HealthModule,
     AuthModule,
+    DevicesModule,
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
   ],
   providers: [

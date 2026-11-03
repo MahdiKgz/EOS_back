@@ -9,7 +9,7 @@
   "scripts": {
     "build": "nest build",
     "start": "nest start",
-    "start:dev": "nest start --watch",
+    "start:dev": "nest start --watch --path tsconfig.dev.json",
     "start:prod": "node dist/main.js",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
@@ -24,7 +24,8 @@
     "test:auth": "pnpm build && node test/auth.integration.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:devices": "pnpm build && node test/devices.integration.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",

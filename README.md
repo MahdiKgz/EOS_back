@@ -118,3 +118,21 @@ pnpm test:auth
 - `pnpm format:check`: check formatting without changing files.
 - Husky runs `lint-staged` before every commit to format staged files and include the changes in the commit. A formatting failure blocks the commit.
 - `pnpm install` activates the hooks through the `prepare` script.
+
+## Equipment inventory
+
+Run `pnpm migration:run` to add the `devices` table before starting the updated API.
+
+Protected endpoints:
+
+- `GET /api/v1/devices`: list equipment. Supports `search`, `status`, `type`, `category` (`network` or `recorder`), `environment`, `sort`, `direction`, `page`, and `pageSize` (maximum 100). Returns `items`, filtered `total`, pagination and workspace-wide status `stats`.
+- `GET /api/v1/devices/:id`: get an active device.
+- `POST /api/v1/devices`: register inventory metadata.
+- `PUT /api/v1/devices/:id`: update inventory metadata. Endpoint changes reset observed status to `unknown`.
+- `DELETE /api/v1/devices/:id`: soft archive; the row remains in the database.
+
+Reads are scoped to `user.workspaceOwnerId ?? user.id`; writes require `pl_admin` or `co_admin`. If `allowedSections` is nonempty it must include `assets`. There is no unscoped platform-admin inventory query. Company management and connector configuration are separate flows.
+
+Metadata follows the reference Device model; NVR/DVR types represent the separate recorder registration path in its UI. No plaintext credentials or caller-supplied status, ownership or last-seen values are accepted. Endpoint uniqueness is enforced in the database for active rows per workspace. Status is not inferred from registration.
+
+`pnpm test:devices` builds and runs the HTTP integration suite against the local migrated database. It verifies access boundaries, validation, duplicates, filters, statistics, pagination, status reset and archive, and removes only its own temporary accounts and dependent records.

@@ -16,6 +16,10 @@ const schema = z.object({
         .filter(Boolean),
     )
     .pipe(z.array(z.url()).min(1)),
+  DEVICE_CREDENTIAL_KEY: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/i)
+    .optional(),
   JWT_SECRET: z.string().min(32),
   JWT_TTL_SECONDS: z.coerce.number().int().min(60).max(86400).default(3600),
   APP_URL: z.url().default("http://localhost:3000"),
