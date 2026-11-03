@@ -8,6 +8,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from "@nestjs/common";
@@ -26,6 +27,7 @@ const DEVICE_CHECK_LIMIT = 5;
 
 @Injectable()
 export class DevicesService {
+  private readonly logger = new Logger(DevicesService.name);
   private readonly activeChecks = new Set<string>();
 
   constructor(@InjectRepository(Device) private readonly devices: Repository<Device>) {}
@@ -255,24 +257,44 @@ export class DevicesService {
 
     this.activeChecks.add(id);
     try {
-      let latencyMs: number | null = null;
-      let reachable = false;
+      let output: string;
       try {
-        const { stdout } = await runPing("ping", ["-n", "-c", "3", "-W", "2", "--", device.host], {
-          timeout: 9000,
-          maxBuffer: 16384,
-          env: { ...process.env, LC_ALL: "C" },
-        });
-        reachable = true;
-        const average = stdout.match(/= [\d.]+\/([\d.]+)\/[\d.]+\/[\d.]+ ms/);
-        if (average) latencyMs = Number(average[1]);
+        const result = await runPing(
+          "ping",
+          ["-n", "-c", "3", "-W", "2", "-w", "6", "--", device.host],
+          {
+            timeout: 9000,
+            maxBuffer: 16384,
+            env: { ...process.env, LC_ALL: "C" },
+          },
+        );
+        output = result.stdout;
       } catch (error) {
-        const failure = error as { code?: number | string; stderr?: string };
-        if (failure.code !== 1 || failure.stderr?.trim())
+        const failure = error as {
+          code?: number | string;
+          signal?: string;
+          stdout?: string;
+          stderr?: string;
+        };
+        const noRoute =
+          failure.code === 2 &&
+          /(?:Network is unreachable|No route to host)/.test(failure.stderr ?? "");
+        if (failure.code !== 1 && !noRoute) {
+          this.logger.warn(
+            `Ping failed for device ${id} (code: ${failure.code ?? "none"}, signal: ${failure.signal ?? "none"})`,
+          );
           throw new ServiceUnavailableException(
             "اجرای پینگ از سمت سرور ممکن نشد. آدرس و دسترسی ICMP سرور را بررسی کنید.",
           );
+        }
+        output = failure.stdout ?? "";
       }
+
+      // With a deadline, iputils can exit with code 1 even after receiving a reply.
+      const replies = output.match(/, (\d+) (?:packets? )?received\b/);
+      const reachable = Number(replies?.[1] ?? 0) > 0;
+      const average = output.match(/= [\d.]+\/([\d.]+)\/[\d.]+\/[\d.]+ ms/);
+      const latencyMs = reachable && average ? Number(average[1]) : null;
 
       const checkedAt = new Date();
       const status = reachable ? "online" : "offline";
