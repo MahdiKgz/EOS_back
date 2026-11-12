@@ -1,0 +1,2 @@
+Gateway of last resort is 192.0.2.254 to network 0.0.0.0
+S* 0.0.0.0/0 [1/0] via 192.0.2.254

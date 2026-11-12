@@ -1,8 +1,7 @@
-import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { promisify } from "node:util";
+import { fortiIdentity } from "./fortigate-inventory";
+import { redactFortiOutput } from "./fortigate-output";
+import { ciscoAccessCode, ciscoAccessMessages, redactCiscoCredentials } from "./cisco-access-error";
+import { runSshCommand } from "./ssh-transport";
 import { BadGatewayException, BadRequestException } from "@nestjs/common";
 import { IsBoolean, IsIn, IsOptional, IsString, Matches, MaxLength } from "class-validator";
 import type { Device } from "./device.entity";
@@ -16,12 +15,53 @@ const commands = {
   diagnostics: "ip route show && ip -6 route show && ss -lntu",
 } as const;
 
-const operations = Object.keys(commands);
-const execute = promisify(execFile);
+const routerOsCommands = {
+  verify: ':put ("EOSNET_ROUTEROS:" . [/system resource get version])',
+  interfaces: "/interface print; /ip address print; /ipv6 address print",
+  monitoring: "/system resource print",
+  diagnostics: "/ip route print; /ipv6 route print",
+  backup: undefined,
+} satisfies Record<keyof typeof commands, string | undefined>;
 
-export type SshCredentials = { username: string; hostKey: string } & (
-  { privateKey: string; password?: never } | { password: string; privateKey?: never }
-);
+const pfSenseCommands = {
+  verify: "/usr/local/bin/php -n /usr/local/sbin/read_global_var product_version",
+  interfaces: "ifconfig -a",
+  monitoring: "uptime && swapinfo -h && df -h",
+  diagnostics: "netstat -rn",
+  backup: undefined,
+} satisfies Record<keyof typeof commands, string | undefined>;
+
+const esxiCommands = {
+  verify: "vmware -v",
+  interfaces: "esxcli network nic list && esxcli network ip interface ipv4 get",
+  monitoring: "esxcli hardware memory get && esxcli storage filesystem list",
+  diagnostics: "esxcli network ip route ipv4 list && esxcli network ip route ipv6 list",
+  backup: undefined,
+} satisfies Record<keyof typeof commands, string | undefined>;
+
+const ciscoCommands = {
+  verify: "show version",
+  interfaces: "show ip interface brief",
+  monitoring: "show processes cpu",
+  diagnostics: "show ip route",
+  backup: undefined,
+} satisfies Record<keyof typeof commands, string | undefined>;
+
+const fortiGateCommands = {
+  verify: "get system status",
+  interfaces: "get system interface physical",
+  monitoring: "get system performance status",
+  diagnostics: "get router info routing-table all",
+  backup: undefined,
+} satisfies Record<keyof typeof commands, string | undefined>;
+
+const operations = Object.keys(commands);
+
+export type SshCredentials = {
+  username: string;
+  hostKey: string;
+  cisco?: { profile: "modern" | "legacy_cisco"; enableSecret?: string };
+} & ({ privateKey: string; password?: never } | { password: string; privateKey?: never });
 
 export class LinuxSshDto {
   @IsOptional()
@@ -74,80 +114,83 @@ export async function runLinuxSsh(
   device: Device,
   input: SshCredentials & { operation: LinuxSshDto["operation"] },
 ) {
-  const directory = await mkdtemp(join(tmpdir(), "eos-ssh-"));
-  const identity = join(directory, "identity");
-  const knownHosts = join(directory, "known_hosts");
+  const routerOs = device.type === "mikrotik";
+  const pfSense = device.type === "pfsense";
+  const pfSenseCommand = pfSenseCommands[input.operation];
+  const esxi = device.type === "esxi";
+  const esxiCommand = esxiCommands[input.operation];
+  const fortiGate = device.type === "fortigate";
+  const cisco = device.type === "cisco";
+  const interactive = fortiGate || cisco;
+  const command = interactive
+    ? (cisco ? ciscoCommands : fortiGateCommands)[input.operation]
+    : routerOs
+      ? routerOsCommands[input.operation]
+      : pfSense
+        ? pfSenseCommand &&
+          `test "$(uname -s)" = FreeBSD && test "$(/usr/local/bin/php -n /usr/local/sbin/read_global_var product_name)" = pfSense && ${pfSenseCommand}`
+        : esxi
+          ? esxiCommand &&
+            (input.operation === "verify"
+              ? esxiCommand
+              : `vmware -v | grep -q '^VMware ESXi ' && ${esxiCommand}`)
+          : `test "$(uname -s)" = Linux && ${commands[input.operation]}`;
+  if (!command) throw new BadRequestException("این عملیات برای نوع تجهیز در دسترس نیست.");
+  const verifyRouterOs = routerOs && input.operation === "verify";
   try {
-    const askpass = join(directory, "askpass");
-    const passwordFile = join(directory, "password");
-    if (input.password !== undefined) {
-      await writeFile(passwordFile, input.password + "\n", { mode: 0o600 });
-      await writeFile(askpass, '#!/bin/sh\nexec /bin/cat "$EOS_SSH_PASSWORD_FILE"\n', {
-        mode: 0o700,
-      });
-    } else {
-      await writeFile(identity, input.privateKey.trimEnd() + "\n", { mode: 0o600 });
+    const output = (await runSshCommand(device, input, command, { interactive }))
+      .toString("utf8")
+      .trim();
+    const verify = input.operation === "verify";
+    const ciscoVersion =
+      cisco && verify
+        ? output.match(
+            /^Cisco IOS(?:[- ]XE)? Software[^\r\n]{0,240}?, Version[ \t]+([^\s,]{1,80})/im,
+          )?.[1]
+        : undefined;
+    if (cisco && verify && !ciscoVersion) throw new Error("Cisco IOS identity missing");
+    const fortiGateVersion =
+      fortiGate && verify && fortiIdentity(output).supported
+        ? output.match(/^Version:[ \t]*(FortiGate[^\r\n]{1,160})/im)?.[1]
+        : undefined;
+    if (fortiGate && verify && !fortiGateVersion) throw new Error("FortiGate identity missing");
+    const version = verifyRouterOs
+      ? output.match(/^EOSNET_ROUTEROS:([0-9][^\r\n]{0,79})\r?$/m)?.[1]
+      : undefined;
+    if (verifyRouterOs && !version) throw new Error("RouterOS identity missing");
+    const verifyEsxi = esxi && input.operation === "verify";
+    const esxiVersion = verifyEsxi
+      ? output.match(/^VMware ESXi ([0-9.]+ build-[0-9]+)$/m)?.[1]
+      : undefined;
+    if (verifyEsxi && !esxiVersion) throw new Error("ESXi identity missing");
+    return {
+      output: cisco
+        ? redactCiscoCredentials(output, [input.password, input.cisco?.enableSecret])
+        : fortiGate
+          ? redactFortiOutput(output, input.password)
+          : output,
+      checkedAt: new Date().toISOString(),
+      ...(ciscoVersion
+        ? { identity: { Manufacturer: "Cisco", FirmwareVersion: ciscoVersion } }
+        : {}),
+      ...(fortiGateVersion
+        ? { identity: { Manufacturer: "Fortinet", FirmwareVersion: fortiGateVersion } }
+        : {}),
+      ...(version ? { identity: { Manufacturer: "MikroTik", FirmwareVersion: version } } : {}),
+      ...(esxiVersion
+        ? { identity: { Manufacturer: "VMware", FirmwareVersion: esxiVersion } }
+        : {}),
+      ...(pfSense && input.operation === "verify"
+        ? { identity: { Manufacturer: "pfSense", FirmwareVersion: output.slice(0, 80) } }
+        : {}),
+    };
+  } catch (error) {
+    if (cisco) {
+      const code = ciscoAccessCode(error);
+      throw new BadGatewayException({ message: ciscoAccessMessages[code], code });
     }
-    await writeFile(knownHosts, `eos-device ${input.hostKey}\n`, { mode: 0o600 });
-    const { stdout } = await execute(
-      "ssh",
-      [
-        "-F",
-        "/dev/null",
-        "-o",
-        input.password !== undefined ? "BatchMode=no" : "BatchMode=yes",
-        "-o",
-        "IdentitiesOnly=yes",
-        "-o",
-        "IdentityAgent=none",
-        "-o",
-        input.password !== undefined ? "PasswordAuthentication=yes" : "PasswordAuthentication=no",
-        "-o",
-        "KbdInteractiveAuthentication=no",
-        ...(input.password !== undefined
-          ? ["-o", "PreferredAuthentications=password", "-o", "NumberOfPasswordPrompts=1"]
-          : ["-i", identity]),
-        "-o",
-        "StrictHostKeyChecking=yes",
-        "-o",
-        "HostKeyAlias=eos-device",
-        "-o",
-        `UserKnownHostsFile=${knownHosts}`,
-        "-o",
-        "GlobalKnownHostsFile=/dev/null",
-        "-o",
-        "ConnectTimeout=5",
-        "-o",
-        "ClearAllForwardings=yes",
-        "-p",
-        String(device.managementPort),
-        "-l",
-        input.username,
-        "--",
-        device.host,
-        `test "$(uname -s)" = Linux && ${commands[input.operation]}`,
-      ],
-      {
-        timeout: 12000,
-        maxBuffer: 256 * 1024,
-        killSignal: "SIGKILL",
-        env:
-          input.password !== undefined
-            ? {
-                ...process.env,
-                SSH_ASKPASS: askpass,
-                SSH_ASKPASS_REQUIRE: "force",
-                EOS_SSH_PASSWORD_FILE: passwordFile,
-              }
-            : process.env,
-      },
-    );
-    return { output: stdout.trim(), checkedAt: new Date().toISOString() };
-  } catch {
     throw new BadGatewayException(
       "عملیات SSH انجام نشد. کلید میزبان، نام کاربری، اعتبارنامه و دسترسی تجهیز را بررسی کنید.",
     );
-  } finally {
-    await rm(directory, { recursive: true, force: true });
   }
 }

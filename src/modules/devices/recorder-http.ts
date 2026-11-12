@@ -1,7 +1,7 @@
 import { isIP } from "node:net";
 import { createHash, randomBytes } from "node:crypto";
-import http from "node:http";
-import https from "node:https";
+import * as http from "node:http";
+import * as https from "node:https";
 
 export class CameraError extends Error {
   constructor(
@@ -23,6 +23,12 @@ export function privateCameraHost(value: unknown) {
 }
 
 export type CameraCredentials = { username?: string; password?: string };
+export function recorderOnvifPath(value?: string) {
+  const path = value ?? "/onvif/device_service";
+  if (!/^\/(?!\/)[a-zA-Z0-9_./-]{1,255}$/.test(path) || path.includes(".."))
+    throw new CameraError("CAMERA_PATH_INVALID");
+  return path;
+}
 type HttpResult = { status: number; headers: http.IncomingHttpHeaders; body: Buffer };
 
 /** Never follows a redirect or resolves a hostname. Device-returned URLs remain pinned to its private IP. */

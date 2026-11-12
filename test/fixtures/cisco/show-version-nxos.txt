@@ -1,0 +1,2 @@
+Cisco Nexus Operating System (NX-OS) Software
+system: version 10.3(2) [build 10.3(2)]

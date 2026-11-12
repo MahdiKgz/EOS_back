@@ -16,11 +16,13 @@ export const deviceTypes = [
   "esxi",
   "mikrotik",
   "fortigate",
+  "cisco",
   "pfsense",
   "generic_syslog_source",
   "generic_firewall",
   "nvr",
   "dvr",
+  "camera",
 ] as const;
 export const protocols = ["ssh", "api", "syslog", "agent"] as const;
 export const environments = ["production", "staging", "lab"] as const;
@@ -36,6 +38,7 @@ export type DeviceType = (typeof deviceTypes)[number];
 export class Device {
   @PrimaryColumn("text") id: string = randomUUID();
   @Column({ type: "text", nullable: true }) companyId!: string | null;
+  @Column({ type: "text", nullable: true }) apiCredentialId!: string | null;
   @Column({ type: "text", nullable: true }) credentialId!: string | null;
   @Column({ type: "varchar", length: 16, default: "direct" }) accessRoute!: "direct";
   @Column("text") workspaceOwnerId!: string;
@@ -46,12 +49,17 @@ export class Device {
   @Column({ type: "varchar", length: 80 }) vendor!: string;
   @Column({ type: "varchar", length: 40 }) type!: DeviceType;
   @Column({ type: "varchar", length: 253 }) host!: string;
+  @Column({ type: "varchar", length: 160, nullable: true }) location!: string | null;
   @Column("integer") managementPort!: number;
   @Column({ type: "varchar", length: 16 }) protocol!: (typeof protocols)[number];
   @Column({ type: "varchar", length: 16 }) environment!: (typeof environments)[number];
   @Column({ type: "text", array: true, default: () => "'{}'" }) tags!: string[];
   @Column({ type: "varchar", length: 16, default: "unknown" }) status!: (typeof statuses)[number];
   @Column({ type: "timestamptz", nullable: true }) lastSeenAt!: Date | null;
+  @Column({ type: "text", nullable: true, select: false })
+  sealedRecorderCredentials?: string | null;
+  @Column({ type: "jsonb", nullable: true })
+  verification!: { checkedAt: string; identity?: Record<string, string> } | null;
   @CreateDateColumn({ type: "timestamptz" }) createdAt!: Date;
   @UpdateDateColumn({ type: "timestamptz" }) updatedAt!: Date;
   @DeleteDateColumn({ type: "timestamptz" }) deletedAt!: Date | null;

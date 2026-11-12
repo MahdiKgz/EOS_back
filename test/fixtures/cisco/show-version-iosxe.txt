@@ -1,0 +1,5 @@
+Cisco IOS XE Software, Version 17.12.01
+Cisco IOS Software [Dublin], Catalyst L3 Switch Software (CAT9K_IOSXE), Version 17.12.1
+Switch uptime is 2 weeks, 3 days
+Model Number                       : C9300-24T
+System Serial Number               : FOC0000TEST

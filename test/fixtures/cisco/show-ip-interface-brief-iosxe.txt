@@ -1,0 +1,3 @@
+Interface              IP-Address      OK? Method Status                Protocol
+GigabitEthernet1/0/1   unassigned      YES unset  up                    up
+Vlan120                192.0.2.1       YES manual up                    up

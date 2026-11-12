@@ -1,0 +1,2 @@
+Switch is in rapid-pvst mode
+Root bridge for: VLAN0001
